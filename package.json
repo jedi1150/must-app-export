@@ -1,0 +1,20 @@
+{
+  "name": "must-app-export",
+  "private": true,
+  "type": "module",
+  "description": "Export public Must (mustapp.com) watchlists to Letterboxd, IMDb, Trakt, and JSON.",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "node --test tests/**/*.test.js",
+    "build": "node scripts/validate-build.mjs",
+    "export:cli": "node scripts/export-must.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
