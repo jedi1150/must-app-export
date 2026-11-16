@@ -10,38 +10,61 @@ import {
   allItemsForIdLookup,
 } from '../js/must-api.js';
 import { resolveExternalIds } from '../js/tmdb.js';
-import { buildExportArtifact } from '../js/exporters.js';
+import { resolveMalIds } from '../js/mal-resolve.js';
+import { buildServiceArtifact, needsIdLookup, resolveServiceFormat } from '../js/services.js';
 import { normalizeUsername } from '../js/utils.js';
 
 function printHelp() {
-  console.log(`Usage: node scripts/export-must.mjs <username> [--format <format>] [--out <dir>]
+  console.log(`Usage: node scripts/export-must.mjs <username> [--service <id>] [--format <format>] [--out <dir>]
 
-Formats: letterboxd | imdb | trakt-csv | trakt-json | json (default: trakt-json)
+Services: letterboxd, trakt, simkl, myanimelist, anilist, moviebase, … (see js/service-catalog.js)
 Options:
-  --diary all|reviewed|none   WatchedDate handling (default: all)
-  --no-reviews                Skip review embed requests
-  --cors-proxy <url>          Optional CORS proxy prefix
+  --service <id>              Target service (default: trakt)
+  --format <id>               Raw format override (skips service mapping)
+  --diary all|reviewed|none
+  --no-reviews
+  --cors-proxy <url>
 `);
 }
 
 function parseArgs(argv) {
-  const args = { format: 'trakt-json', diary: 'all', includeReviews: true, out: 'exports' };
+  const args = { service: 'trakt', diary: 'all', includeReviews: true, out: 'exports' };
   const positional = [];
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--help' || a === '-h') args.help = true;
+    else if (a === '--service') args.service = argv[++i];
+    else if (a.startsWith('--service=')) args.service = a.slice('--service='.length);
     else if (a === '--format') args.format = argv[++i];
     else if (a.startsWith('--format=')) args.format = a.slice('--format='.length);
     else if (a === '--out') args.out = argv[++i];
-    else if (a.startsWith('--out=')) args.out = a.slice('--out='.length);
     else if (a === '--diary') args.diary = argv[++i];
-    else if (a.startsWith('--diary=')) args.diary = a.slice('--diary='.length);
     else if (a === '--no-reviews') args.includeReviews = false;
     else if (a === '--cors-proxy') args.corsProxy = argv[++i];
     else positional.push(a);
   }
   args.username = positional[0];
   return args;
+}
+
+async function writeArtifact(outDir, artifact) {
+  await fs.mkdir(outDir, { recursive: true });
+  if (artifact.blob) {
+    const buf = Buffer.from(await artifact.blob.arrayBuffer());
+    await fs.writeFile(path.join(outDir, artifact.filename), buf);
+    console.log(`Wrote ${path.join(outDir, artifact.filename)}`);
+    return;
+  }
+  await fs.writeFile(path.join(outDir, artifact.filename), artifact.content, 'utf8');
+  console.log(`Wrote ${path.join(outDir, artifact.filename)}`);
+  if (artifact.extraFiles?.length) {
+    for (const file of artifact.extraFiles) {
+      if (file.name === artifact.filename) continue;
+      const p = path.join(outDir, file.name);
+      await fs.writeFile(p, file.content, 'utf8');
+      console.log(`Wrote ${p}`);
+    }
+  }
 }
 
 async function main() {
@@ -53,35 +76,24 @@ async function main() {
 
   const username = normalizeUsername(args.username);
   const http = createHttpClient({ corsProxy: args.corsProxy || process.env.MUST_CORS_PROXY || '' });
+  const target = args.format
+    ? { format: args.format, service: null }
+    : resolveServiceFormat(args.service, false, null);
 
   console.log(`Fetching Must profile @${username}...`);
   const profile = await fetchPublicProfile(http, username);
   const bearer = await fetchAnonymousToken(http);
-  const library = await loadUserLibrary(http, profile, bearer, {
-    includeReviews: args.includeReviews,
-  });
+  const library = await loadUserLibrary(http, profile, bearer, { includeReviews: args.includeReviews });
 
-  const lookupItems = allItemsForIdLookup(library);
-  if (args.format !== 'json' && lookupItems.length) {
-    console.log(`Resolving IMDb/TMDB for ${lookupItems.length} titles…`);
-    await resolveExternalIds(http, lookupItems, process.env.TMDB_BEARER_TOKEN, (cur, total) => {
-      if (cur % 50 === 0 || cur === total) console.log(`  ${cur}/${total}`);
-    });
+  if (needsIdLookup(target.format)) {
+    await resolveExternalIds(http, allItemsForIdLookup(library), process.env.TMDB_BEARER_TOKEN);
+  }
+  if (target.format === 'mal-xml') {
+    await resolveMalIds(http, library);
   }
 
-  const artifact = buildExportArtifact(args.format, library, username, args.diary);
-  await fs.mkdir(args.out, { recursive: true });
-  const outPath = path.join(args.out, artifact.filename);
-  await fs.writeFile(outPath, artifact.content, 'utf8');
-  console.log(`Wrote ${outPath}`);
-
-  if (artifact.extraFiles?.length) {
-    for (const file of artifact.extraFiles) {
-      const extraPath = path.join(args.out, file.name);
-      await fs.writeFile(extraPath, file.content, 'utf8');
-      console.log(`Wrote ${extraPath}`);
-    }
-  }
+  const artifact = await buildServiceArtifact(target, library, username, args.diary);
+  await writeArtifact(args.out, artifact);
 }
 
 main().catch((error) => {
