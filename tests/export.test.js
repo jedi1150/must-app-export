@@ -39,6 +39,21 @@ describe('buildExportArtifact', () => {
     assert.match(art.content, /movie,watched,tt0137523,550,Fight Club/);
   });
 
+  it('produces MAL XML with matched anime and unmatched report', () => {
+    const lib = structuredClone(library);
+    lib.lists.shows[0].malAttempted = true;
+    lib.lists.shows[0].malMatch = { mal_id: 1535, title: 'Death Note' };
+    lib.lists.shows.push({
+      ...structuredClone(lib.lists.shows[0]),
+      product: { id: 5, type: 'show', title: 'Obscure Anime', release_date: '2020-01-01' },
+      malAttempted: true,
+      malMatch: null,
+    });
+    const art = buildExportArtifact('mal-xml', lib, user, 'all');
+    assert.match(art.content, /series_animedb_id>1535</);
+    assert.match(art.extraFiles[1].content, /Obscure Anime.*no_mal_match/);
+  });
+
   it('produces parseable Trakt JSON and raw JSON', () => {
     for (const format of ['trakt-json', 'json']) {
       const art = buildExportArtifact(format, library, user, 'none');

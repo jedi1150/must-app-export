@@ -19,6 +19,24 @@ export function buildExportArtifact(format, library, username, diaryMode) {
       return traktCsv(library, username, diaryMode);
     case 'trakt-json':
       return traktJson(library, username, diaryMode);
+    case 'simkl':
+      return simklCsv(library, username, diaryMode);
+    case 'tvtime':
+      return tvtimeCsv(library, username, diaryMode);
+    case 'plex':
+      return plexExports(library, username, diaryMode);
+    case 'kinorium':
+      return kinoriumCsv(library, username, diaryMode);
+    case 'serializd':
+      return serializdShowsList(library, username);
+    case 'sheets':
+      return genericSheetsCsv(library, username, diaryMode);
+    case 'markdown':
+      return obsidianMarkdown(library, username, diaryMode);
+    case 'moviebase':
+      return moviebaseBundle(library, username, diaryMode);
+    case 'mal-xml':
+      return malXmlExport(library, username, diaryMode);
     case 'json':
       return rawJson(library, username);
     default:
@@ -251,6 +269,352 @@ function traktItem(item, diaryMode) {
     review: item.reviewText || null,
     must_product_id: p?.id ?? null,
   };
+}
+
+function plexExports(library, username, _diaryMode) {
+  const build = (items, kind) => {
+    const lines = ['Title,Year,imdbID'];
+    for (const item of items) {
+      const p = item.product;
+      lines.push([p?.title ?? '', yearFromDate(p?.release_date), item.externalIds?.imdbID ?? ''].map(csvEscape).join(','));
+    }
+    return { kind, csv: `${lines.join('\n')}\n` };
+  };
+
+  const moviesWatched = library.lists.watched.filter((i) => i.product?.type !== 'show');
+  const moviesWant = library.lists.want.filter((i) => i.product?.type !== 'show');
+  const shows = library.lists.shows;
+  const showRows = shows.map((item) => {
+    const p = item.product;
+    return [p?.title ?? '', yearFromDate(p?.release_date), item.externalIds?.imdbID ?? ''].map(csvEscape).join(',');
+  });
+
+  const watchedCsv = build(moviesWatched, 'watched').csv;
+  const wantCsv = build(moviesWant, 'want').csv;
+  const showsCsv = ['Title,Year,imdbID', ...showRows].join('\n') + '\n';
+
+  return {
+    filename: `${username}-plex-lists.zip`,
+    mime: 'application/zip',
+    content: '',
+    previewRows: [...moviesWatched, ...shows].slice(0, PREVIEW_LIMIT).map((item) => previewRow(item)),
+    extraFiles: [
+      { name: `${username}-plex-watched-movies.csv`, content: watchedCsv },
+      { name: `${username}-plex-watchlist-movies.csv`, content: wantCsv },
+      { name: `${username}-plex-shows.csv`, content: showsCsv },
+    ],
+  };
+}
+
+function kinoriumCsv(library, username, diaryMode) {
+  const lines = ['date,status,title,year,imdb_id,tmdb_id,type'];
+  const emit = (item, type) => {
+    const p = item.product;
+    const rate = item.user_product_info?.rate;
+    const status = rate != null && rate !== '' ? rate : 'watched';
+    const date = watchedDateFromItem(item, diaryMode) || item.user_product_info?.modified_at?.slice(0, 10) || '';
+    lines.push(
+      [date, status, p?.title ?? '', yearFromDate(p?.release_date), item.externalIds?.imdbID ?? '', item.externalIds?.tmdbID ?? '', type]
+        .map(csvEscape)
+        .join(','),
+    );
+  };
+  for (const item of library.lists.watched) {
+    emit(item, item.product?.type === 'show' ? 'show' : 'movie');
+  }
+  for (const item of library.lists.want) emit(item, 'movie');
+  for (const item of library.lists.shows) emit(item, 'show');
+
+  const csv = `${lines.join('\n')}\n`;
+  return {
+    filename: `${username}-kinorium-import.csv`,
+    mime: 'text/csv;charset=utf-8',
+    content: csv,
+    previewRows: allItemsForIdLookup(library).slice(0, PREVIEW_LIMIT).map((item) => previewRow(item)),
+  };
+}
+
+function serializdShowsList(library, username) {
+  const titles = new Set();
+  for (const item of library.lists.shows) {
+    if (item.product?.title) titles.add(item.product.title);
+  }
+  for (const item of library.lists.watched) {
+    if (item.product?.type === 'show' && item.product?.title) titles.add(item.product.title);
+  }
+  const text = `${[...titles].sort((a, b) => a.localeCompare(b)).join('\n')}\n`;
+  return {
+    filename: `${username}-serializd-shows.txt`,
+    mime: 'text/plain;charset=utf-8',
+    content: text,
+    previewRows: library.lists.shows.slice(0, PREVIEW_LIMIT).map((item) => previewRow(item)),
+  };
+}
+
+function genericSheetsCsv(library, username, diaryMode) {
+  const lines = [
+    'list,type,title,year,imdb_id,tmdb_id,rating,status,watched_date,episodes_watched,episode_count,review',
+  ];
+  const emit = (item, type) => {
+    const p = item.product;
+    lines.push(
+      [
+        item.listName,
+        type,
+        p?.title ?? '',
+        yearFromDate(p?.release_date),
+        item.externalIds?.imdbID ?? '',
+        item.externalIds?.tmdbID ?? '',
+        item.user_product_info?.rate ?? '',
+        item.user_product_info?.status ?? '',
+        watchedDateFromItem(item, diaryMode),
+        item.user_product_info?.user_show_info?.episodes_watched ?? '',
+        type === 'show' ? p?.items_count ?? '' : '',
+        item.reviewText || '',
+      ]
+        .map(csvEscape)
+        .join(','),
+    );
+  };
+  for (const item of library.lists.watched) emit(item, item.product?.type === 'show' ? 'show' : 'movie');
+  for (const item of library.lists.want) emit(item, 'movie');
+  for (const item of library.lists.shows) emit(item, 'show');
+
+  const csv = `${lines.join('\n')}\n`;
+  return {
+    filename: `${username}-must-universal.csv`,
+    mime: 'text/csv;charset=utf-8',
+    content: csv,
+    previewRows: allItemsForIdLookup(library).slice(0, PREVIEW_LIMIT).map((item) => previewRow(item)),
+  };
+}
+
+function obsidianMarkdown(library, username, diaryMode) {
+  const sections = [`# Must export @${username}`, `Exported: ${new Date().toISOString()}`, ''];
+  const appendSection = (title, items) => {
+    sections.push(`## ${title}`);
+    for (const item of items) {
+      const p = item.product;
+      const type = p?.type === 'show' ? 'show' : 'movie';
+      const rate = item.user_product_info?.rate;
+      const date = watchedDateFromItem(item, diaryMode);
+      const imdb = item.externalIds?.imdbID;
+      const tags = [type, item.listName, rate != null ? `rating/${rate}` : null].filter(Boolean).join(' ');
+      const link = imdb ? `https://www.imdb.com/title/${imdb}/` : '';
+      const meta = [yearFromDate(p?.release_date), date, link].filter(Boolean).join(' · ');
+      sections.push(`- [ ] **${p?.title ?? 'Untitled'}** (${meta}) \`${tags}\``);
+    }
+    sections.push('');
+  };
+  appendSection('Watched', library.lists.watched);
+  appendSection('Want', library.lists.want);
+  appendSection('Shows', library.lists.shows);
+
+  const md = `${sections.join('\n')}\n`;
+  return {
+    filename: `${username}-must-obsidian.md`,
+    mime: 'text/markdown;charset=utf-8',
+    content: md,
+    previewRows: allItemsForIdLookup(library).slice(0, PREVIEW_LIMIT).map((item) => previewRow(item)),
+  };
+}
+
+function moviebaseBundle(library, username, diaryMode) {
+  const trakt = traktCsv(library, username, diaryMode);
+  const simkl = simklCsv(library, username, diaryMode);
+  const letterboxd = letterboxdZipLike(library, username, diaryMode);
+  return {
+    filename: `${username}-moviebase-via-trakt.zip`,
+    mime: 'application/zip',
+    content: '',
+    previewRows: trakt.previewRows,
+    extraFiles: [
+      { name: trakt.filename, content: trakt.content },
+      { name: simkl.filename, content: simkl.content },
+      ...(letterboxd.extraFiles || []),
+      { name: 'README-moviebase.txt', content: moviebaseReadme(username) },
+    ],
+  };
+}
+
+function moviebaseReadme(username) {
+  return `Moviebase import guide for Must export (@${username})
+
+Recommended route:
+1) Import ${username}-trakt-import.csv into Trakt (https://github.com/xbgmsharp/trakt) OR
+2) In Moviebase app: Settings → Import → choose Trakt / Simkl / Letterboxd export.
+
+Moviebase also supports live Trakt sync (Settings → Trakt): https://moviebase.app/resources/how-to-sync-trakt
+`;
+}
+
+const SIMKL_HEADER =
+  'Type,TMDB_ID,IMDB_ID,Title,Year,LastEpWatched,Watchlist,WatchedDate,Rating,Memo';
+
+function simklWatchlist(status, listName) {
+  if (listName === 'want') return 'plan to watch';
+  if (status === 'watching') return 'watching';
+  if (status === 'watched') return 'completed';
+  return 'completed';
+}
+
+function simklDate(item, diaryMode) {
+  const d = watchedDateFromItem(item, diaryMode) || item.user_product_info?.modified_at?.slice(0, 10);
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return `${day}-${m}-${y}`;
+}
+
+function simklCsv(library, username, diaryMode) {
+  const lines = [SIMKL_HEADER];
+  const emit = (item, type) => {
+    const p = item.product;
+    const isShow = type === 'tv';
+    const ep = item.user_product_info?.user_show_info?.episodes_watched;
+    const lastEp = isShow && ep ? `S01E${String(ep).padStart(2, '0')}` : '';
+    lines.push(
+      [
+        type,
+        item.externalIds?.tmdbID ?? '',
+        item.externalIds?.imdbID ?? '',
+        p?.title ?? '',
+        yearFromDate(p?.release_date),
+        lastEp,
+        simklWatchlist(item.user_product_info?.status, item.listName),
+        simklDate(item, diaryMode),
+        item.user_product_info?.rate ?? '',
+        item.reviewText || '',
+      ]
+        .map(csvEscape)
+        .join(','),
+    );
+  };
+
+  for (const item of library.lists.watched) {
+    if (item.product?.type === 'show') emit(item, 'tv');
+    else emit(item, 'movie');
+  }
+  for (const item of library.lists.want) emit(item, 'movie');
+  for (const item of library.lists.shows) emit(item, 'tv');
+
+  const csv = `${lines.join('\n')}\n`;
+  return {
+    filename: `${username}-simkl-import.csv`,
+    mime: 'text/csv;charset=utf-8',
+    content: csv,
+    previewRows: allItemsForIdLookup(library).slice(0, PREVIEW_LIMIT).map((item) => previewRow(item)),
+  };
+}
+
+function tvtimeCsv(library, username, diaryMode) {
+  const lines = [
+    'content_type,title,year,imdb_id,tmdb_id,list,status,episodes_watched,episode_count,rating,watched_date',
+  ];
+
+  const emit = (item, type) => {
+    const p = item.product;
+    lines.push(
+      [
+        type,
+        p?.title ?? '',
+        yearFromDate(p?.release_date),
+        item.externalIds?.imdbID ?? '',
+        item.externalIds?.tmdbID ?? '',
+        item.listName,
+        item.user_product_info?.status ?? '',
+        item.user_product_info?.user_show_info?.episodes_watched ?? '',
+        type === 'show' ? p?.items_count ?? '' : '',
+        item.user_product_info?.rate ?? '',
+        watchedDateFromItem(item, diaryMode),
+      ]
+        .map(csvEscape)
+        .join(','),
+    );
+  };
+
+  for (const item of library.lists.watched) {
+    if (item.product?.type === 'show') emit(item, 'show');
+    else emit(item, 'movie');
+  }
+  for (const item of library.lists.want) emit(item, 'movie');
+  for (const item of library.lists.shows) emit(item, 'show');
+
+  const csv = `${lines.join('\n')}\n`;
+  return {
+    filename: `${username}-tvtime-archive.csv`,
+    mime: 'text/csv;charset=utf-8',
+    content: csv,
+    previewRows: allItemsForIdLookup(library).slice(0, PREVIEW_LIMIT).map((item) => previewRow(item)),
+  };
+}
+
+function malXmlExport(library, username, diaryMode) {
+  const matched = [];
+  const unmatched = [];
+  for (const item of allItemsForIdLookup(library)) {
+    if (item.malMatch?.mal_id) matched.push(item);
+    else if (item.malAttempted) unmatched.push(item);
+  }
+
+  const animeBlocks = matched.map((item) => malAnimeBlock(item, diaryMode)).join('\n');
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<myanimelist>\n${animeBlocks}\n</myanimelist>\n`;
+  const unmatchedCsv = [
+    'title,year,list,type,reason',
+    ...unmatched.map((u) =>
+      [
+        u.product?.title ?? '',
+        yearFromDate(u.product?.release_date),
+        u.listName,
+        u.product?.type ?? 'movie',
+        'no_mal_match',
+      ]
+        .map(csvEscape)
+        .join(','),
+    ),
+  ].join('\n');
+
+  return {
+    filename: `${username}-mal-anime.xml`,
+    mime: 'application/xml;charset=utf-8',
+    content: xml,
+    previewRows: matched.slice(0, PREVIEW_LIMIT).map((item) => previewRow(item)),
+    meta: { matched: matched.length, unmatched: unmatched.length },
+    extraFiles: [
+      { name: `${username}-mal-anime.xml`, content: xml },
+      { name: `${username}-mal-unmatched.csv`, content: `${unmatchedCsv}\n` },
+    ],
+  };
+}
+
+function malAnimeBlock(item, diaryMode) {
+  const malId = item.malMatch.mal_id;
+  const title = escapeXmlCdataText(item.malMatch.title || item.product?.title || '');
+  const status = malStatus(item);
+  const score = item.user_product_info?.rate ?? 0;
+  const ep = item.user_product_info?.user_show_info?.episodes_watched ?? 0;
+  const start = watchedDateFromItem(item, diaryMode) || '0000-00-00';
+  const finish = item.listName === 'watched' ? start : '0000-00-00';
+  return `  <anime>
+    <series_animedb_id>${malId}</series_animedb_id>
+    <series_title><![CDATA[${title}]]></series_title>
+    <my_watched_episodes>${ep}</my_watched_episodes>
+    <my_start_date>${start}</my_start_date>
+    <my_finish_date>${finish}</my_finish_date>
+    <my_score>${score}</my_score>
+    <my_status>${status}</my_status>
+    <my_times_watched>1</my_times_watched>
+    <update_on_import>1</update_on_import>
+  </anime>`;
+}
+
+function malStatus(item) {
+  if (item.listName === 'want') return 'Plan to Watch';
+  if (item.user_product_info?.status === 'watching') return 'Watching';
+  return 'Completed';
+}
+
+function escapeXmlCdataText(value) {
+  return String(value).replace(/]]>/g, ']]]]><![CDATA[>');
 }
 
 function rawJson(library, username) {

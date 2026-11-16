@@ -3,10 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta
-      name="description"
-      content="Экспорт фильмов и сериалов из публичного профиля Must (mustapp.com)"
-    />
+    <meta name="description" content="Экспорт фильмов и сериалов из публичного профиля Must (mustapp.com)" />
     <title>Must Export</title>
     <link rel="stylesheet" href="css/styles.css" />
   </head>
@@ -17,9 +14,7 @@
           <span class="brand-mark" aria-hidden="true">M</span>
           <div>
             <h1 class="brand-title" data-i18n="title">Экспорт Must</h1>
-            <p class="brand-sub" data-i18n="subtitle">
-              Выгрузка просмотренного, списка «Посмотрю» и сериалов из публичного профиля
-            </p>
+            <p class="brand-sub" data-i18n="subtitle">Публичный профиль → статистика → выгрузка в Letterboxd, Trakt, Simkl, MAL и др.</p>
           </div>
         </div>
         <div class="lang-switch" role="group" aria-label="Language">
@@ -30,129 +25,104 @@
     </header>
 
     <main class="container">
-      <section class="card panel">
-        <form id="export-form" novalidate>
+      <section class="card panel landing-services" id="landing-services">
+        <h2 data-i18n="supportedServicesTitle">Куда можно экспортировать</h2>
+        <p class="field-hint" data-i18n="supportedServicesHint">Выберите сервис на шаге 3 — мы подготовим нужные файлы.</p>
+        <div id="services-landing" class="services-landing"></div>
+      </section>
+
+      <section class="card panel" id="step-lookup">
+        <h2 class="step-title"><span class="step-num">1</span> <span data-i18n="step1Title">Поиск профиля</span></h2>
+        <form id="lookup-form" novalidate>
           <label class="field">
             <span class="field-label" data-i18n="usernameLabel">Имя пользователя Must</span>
             <div class="input-row">
               <span class="input-prefix">@</span>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                autocomplete="off"
-                spellcheck="false"
-                placeholder="grotesque"
-                required
-              />
+              <input id="username" name="username" type="text" autocomplete="off" spellcheck="false" placeholder="grotesque" required />
             </div>
-            <span class="field-hint" data-i18n="usernameHint">
-              Никнейм из ссылки mustapp.com/@никнейм (профиль должен быть публичным)
-            </span>
           </label>
-
-          <fieldset class="formats">
-            <legend data-i18n="formatLegend">Формат экспорта</legend>
-            <label class="radio">
-              <input type="radio" name="format" value="letterboxd" checked />
-              <span data-i18n="fmtLetterboxd">Letterboxd (CSV, фильмы)</span>
-            </label>
-            <label class="radio">
-              <input type="radio" name="format" value="imdb" />
-              <span data-i18n="fmtImdb">IMDb (CSV, фильмы)</span>
-            </label>
-            <label class="radio">
-              <input type="radio" name="format" value="trakt-csv" />
-              <span data-i18n="fmtTraktCsv">Trakt (CSV, фильмы и сериалы)</span>
-            </label>
-            <label class="radio">
-              <input type="radio" name="format" value="trakt-json" />
-              <span data-i18n="fmtTraktJson">Trakt-friendly JSON</span>
-            </label>
-            <label class="radio">
-              <input type="radio" name="format" value="json" />
-              <span data-i18n="fmtJson">Полный JSON (сырые данные)</span>
-            </label>
-          </fieldset>
-
-          <details class="advanced" id="advanced-settings">
-            <summary data-i18n="advancedSummary">Дополнительные настройки</summary>
-            <div class="advanced-body">
-              <label class="field">
-                <span class="field-label" data-i18n="diaryLabel">Даты просмотра (WatchedDate)</span>
-                <select id="diary-mode" name="diary">
-                  <option value="all" data-i18n="diaryAll">Все отмеченные (modified_at)</option>
-                  <option value="reviewed" data-i18n="diaryReviewed">Только с отзывом</option>
-                  <option value="none" data-i18n="diaryNone">Не включать даты</option>
-                </select>
-              </label>
-              <label class="check">
-                <input type="checkbox" id="include-reviews" />
-                <span data-i18n="includeReviews">Загружать текст отзывов (доп. запросы)</span>
-              </label>
-              <label class="field">
-                <span class="field-label" data-i18n="tmdbTokenLabel">TMDB Bearer (опционально)</span>
-                <input
-                  id="tmdb-token"
-                  type="password"
-                  autocomplete="off"
-                  placeholder="v4 token…"
-                />
-                <span class="field-hint" data-i18n="tmdbTokenHint">
-                  Для сопоставления imdb/tmdb. По умолчанию используется встроенный read-only ключ.
-                </span>
-              </label>
-              <label class="field">
-                <span class="field-label" data-i18n="corsProxyLabel">CORS-прокси (запасной вариант)</span>
-                <input
-                  id="cors-proxy"
-                  type="url"
-                  autocomplete="off"
-                  placeholder="https://corsproxy.io/?"
-                />
-                <span class="field-hint" data-i18n="corsProxyHint">
-                  Обычно не нужен: mustapp.com и TMDB отдают Access-Control-Allow-Origin: *.
-                </span>
-              </label>
-            </div>
-          </details>
-
           <div class="actions">
-            <button type="submit" id="submit-btn" class="btn primary" data-i18n="startExport">
-              Начать экспорт
-            </button>
-            <button type="button" id="download-btn" class="btn secondary" disabled data-i18n="download">
-              Скачать
-            </button>
+            <button type="submit" id="lookup-btn" class="btn primary" data-i18n="lookupProfile">Найти профиль</button>
           </div>
         </form>
+        <div id="lookup-alert" class="alert hidden" role="alert"></div>
+        <div id="lookup-preview" class="lookup-preview hidden"></div>
+      </section>
 
+      <section class="card panel hidden" id="step-load">
+        <h2 class="step-title"><span class="step-num">2</span> <span data-i18n="step2Title">Загрузка данных</span></h2>
+        <p id="cache-hint" class="field-hint"></p>
+        <div class="actions">
+          <button type="button" id="load-btn" class="btn primary" data-i18n="loadLibrary">Загрузить / обновить</button>
+          <button type="button" id="use-cache-btn" class="btn secondary hidden" data-i18n="useCache">Использовать кэш</button>
+        </div>
         <div id="progress" class="progress hidden" aria-live="polite">
           <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
             <div id="progress-fill" class="progress-fill"></div>
           </div>
           <p id="progress-text" class="progress-text"></p>
         </div>
-
-        <div id="alert" class="alert hidden" role="alert"></div>
+        <div id="dashboard" class="dashboard hidden">
+          <h3 data-i18n="dashboardTitle">Статистика</h3>
+          <div id="profile-card" class="profile-card"></div>
+          <div id="stats-grid" class="stats-grid"></div>
+          <div id="rating-chart" class="rating-chart"></div>
+          <div id="top-years" class="top-years"></div>
+        </div>
       </section>
 
-      <section id="summary" class="card summary hidden" aria-live="polite">
-        <h2 data-i18n="summaryTitle">Предпросмотр</h2>
-        <div id="profile-card" class="profile-card"></div>
-        <div id="stats-grid" class="stats-grid"></div>
-        <div id="preview-table-wrap" class="table-wrap"></div>
+      <section class="card panel hidden" id="step-export">
+        <h2 class="step-title"><span class="step-num">3</span> <span data-i18n="step3Title">Экспорт</span></h2>
+        <form id="export-form" novalidate>
+          <fieldset class="formats" id="service-fieldset">
+            <legend data-i18n="serviceLegend">Куда переносим</legend>
+            <div id="service-list"></div>
+            <p id="service-files-hint" class="field-hint" aria-live="polite"></p>
+          </fieldset>
+          <details class="advanced" id="advanced-settings">
+            <summary data-i18n="advancedSummary">Дополнительные настройки</summary>
+            <div class="advanced-body">
+              <label class="check">
+                <input type="checkbox" id="manual-format-toggle" />
+                <span data-i18n="manualFormatToggle">Выбрать формат файла вручную</span>
+              </label>
+              <fieldset class="formats manual-formats hidden" id="manual-formats">
+                <legend data-i18n="formatLegend">Формат экспорта</legend>
+                <label class="radio"><input type="radio" name="format" value="letterboxd" checked /><span data-i18n="fmtLetterboxd">Letterboxd CSV</span></label>
+                <label class="radio"><input type="radio" name="format" value="imdb" /><span data-i18n="fmtImdb">IMDb CSV</span></label>
+                <label class="radio"><input type="radio" name="format" value="trakt-csv" /><span data-i18n="fmtTraktCsv">Trakt CSV</span></label>
+                <label class="radio"><input type="radio" name="format" value="trakt-json" /><span data-i18n="fmtTraktJson">Trakt JSON</span></label>
+                <label class="radio"><input type="radio" name="format" value="simkl" /><span data-i18n="fmtSimkl">Simkl CSV</span></label>
+                <label class="radio"><input type="radio" name="format" value="mal-xml" /><span data-i18n="fmtMal">MAL XML</span></label>
+                <label class="radio"><input type="radio" name="format" value="json" /><span data-i18n="fmtJson">Полный JSON</span></label>
+              </fieldset>
+              <label class="field">
+                <span class="field-label" data-i18n="diaryLabel">Даты просмотра</span>
+                <select id="diary-mode" name="diary">
+                  <option value="all" data-i18n="diaryAll">Все отмеченные</option>
+                  <option value="reviewed" data-i18n="diaryReviewed">Только с отзывом</option>
+                  <option value="none" data-i18n="diaryNone">Не включать даты</option>
+                </select>
+              </label>
+              <label class="check"><input type="checkbox" id="include-reviews" /><span data-i18n="includeReviews">Загружать отзывы</span></label>
+              <label class="field"><span class="field-label" data-i18n="tmdbTokenLabel">TMDB Bearer</span><input id="tmdb-token" type="password" autocomplete="off" /></label>
+              <label class="field"><span class="field-label" data-i18n="corsProxyLabel">CORS-прокси</span><input id="cors-proxy" type="url" autocomplete="off" /></label>
+            </div>
+          </details>
+          <div class="actions">
+            <button type="submit" id="export-btn" class="btn primary" data-i18n="buildExport">Собрать экспорт</button>
+            <button type="button" id="download-btn" class="btn secondary" disabled data-i18n="download">Скачать</button>
+          </div>
+        </form>
+        <div id="export-alert" class="alert hidden" role="alert"></div>
+        <div id="import-guide" class="import-guide hidden"></div>
+        <div id="preview-table-wrap" class="table-wrap hidden"></div>
       </section>
     </main>
 
     <footer class="site-footer container">
-      <p data-i18n="footerNote">
-        Данные запрашиваются только из публичного API Must. Ключи и списки не отправляются на сторонние серверы,
-        кроме TMDB для сопоставления ID (и опционального CORS-прокси).
-      </p>
-      <p>
-        <a href="https://github.com/jedi1150/must-app-export" rel="noopener">GitHub</a>
-      </p>
+      <p data-i18n="footerNote">Данные запрашиваются из публичного API Must; TMDB/Jikan — только для сопоставления ID.</p>
+      <p><a href="https://github.com/jedi1150/must-app-export" rel="noopener">GitHub</a></p>
     </footer>
 
     <script type="module" src="js/main.js"></script>
