@@ -1,0 +1,121 @@
+export const dictionaries = {
+  ru: {
+    title: 'Экспорт Must',
+    subtitle: 'Выгрузка просмотренного, списка «Посмотрю» и сериалов из публичного профиля',
+    usernameLabel: 'Имя пользователя Must',
+    usernameHint: 'Никнейм из ссылки mustapp.com/@никнейм (профиль должен быть публичным)',
+    formatLegend: 'Формат экспорта',
+    fmtLetterboxd: 'Letterboxd (CSV, фильмы)',
+    fmtImdb: 'IMDb (CSV, фильмы)',
+    fmtTraktCsv: 'Trakt (CSV, фильмы и сериалы)',
+    fmtTraktJson: 'Trakt-friendly JSON',
+    fmtJson: 'Полный JSON (сырые данные)',
+    advancedSummary: 'Дополнительные настройки',
+    diaryLabel: 'Даты просмотра (WatchedDate)',
+    diaryAll: 'Все отмеченные (modified_at)',
+    diaryReviewed: 'Только с отзывом',
+    diaryNone: 'Не включать даты',
+    includeReviews: 'Загружать текст отзывов (доп. запросы)',
+    tmdbTokenLabel: 'TMDB Bearer (опционально)',
+    tmdbTokenHint: 'Для сопоставления imdb/tmdb. По умолчанию используется встроенный read-only ключ.',
+    corsProxyLabel: 'CORS-прокси (запасной вариант)',
+    corsProxyHint: 'Обычно не нужен: mustapp.com и TMDB отдают Access-Control-Allow-Origin: *.',
+    startExport: 'Начать экспорт',
+    download: 'Скачать',
+    summaryTitle: 'Предпросмотр',
+    footerNote:
+      'Данные запрашиваются только из публичного API Must. Ключи и списки не отправляются на сторонние серверы, кроме TMDB для сопоставления ID (и опционального CORS-прокси).',
+    errEmptyUser: 'Введите имя пользователя.',
+    errPrivate: 'Профиль приватный или не отдаёт списки. Сделайте профиль публичным.',
+    errNotFound: 'Пользователь не найден.',
+    errExport: 'Экспорт не удался',
+    progressProfile: 'Загрузка профиля…',
+    progressList: 'Списки: {list} ({current}/{total})',
+    progressIds: 'Сопоставление IMDb/TMDB: {current}/{total}',
+    exportDone: 'Готово. Можно скачать файл.',
+    statMoviesWatched: 'Фильмы (просмотрено)',
+    statMoviesWant: 'Фильмы (посмотрю)',
+    statShows: 'Сериалы',
+    statRated: 'С оценкой',
+    colTitle: 'Название',
+    colYear: 'Год',
+    colList: 'Список',
+    colType: 'Тип',
+    colRating: 'Оценка',
+    colImdb: 'IMDb',
+    colStatus: 'Статус',
+    previewMore: '… и ещё {n} записей в файле',
+    verified: 'Проверен',
+    privateBadge: 'Приватный',
+    avgRating: 'Средняя оценка',
+    followers: 'Подписчики',
+  },
+  en: {
+    title: 'Must Export',
+    subtitle: 'Export watched, watchlist, and TV progress from a public Must profile',
+    usernameLabel: 'Must username',
+    usernameHint: 'Nickname from mustapp.com/@nickname (profile must be public)',
+    formatLegend: 'Export format',
+    fmtLetterboxd: 'Letterboxd (CSV, movies)',
+    fmtImdb: 'IMDb (CSV, movies)',
+    fmtTraktCsv: 'Trakt (CSV, movies & shows)',
+    fmtTraktJson: 'Trakt-friendly JSON',
+    fmtJson: 'Full raw JSON dump',
+    advancedSummary: 'Advanced settings',
+    diaryLabel: 'Watch dates (WatchedDate)',
+    diaryAll: 'All marked titles (modified_at)',
+    diaryReviewed: 'Only with a written review',
+    diaryNone: 'Do not include dates',
+    includeReviews: 'Fetch review text (extra requests)',
+    tmdbTokenLabel: 'TMDB bearer token (optional)',
+    tmdbTokenHint: 'Used to resolve imdb/tmdb IDs. A built-in read-only token is used by default.',
+    corsProxyLabel: 'CORS proxy (fallback)',
+    corsProxyHint: 'Usually not needed: mustapp.com and TMDB send Access-Control-Allow-Origin: *.',
+    startExport: 'Start export',
+    download: 'Download',
+    summaryTitle: 'Preview',
+    footerNote:
+      'Data is loaded from Must public APIs only. Lists are not sent to third parties except TMDB for ID matching (and an optional CORS proxy).',
+    errEmptyUser: 'Enter a username.',
+    errPrivate: 'Profile is private or lists are hidden. Make the profile public.',
+    errNotFound: 'User not found.',
+    errExport: 'Export failed',
+    progressProfile: 'Loading profile…',
+    progressList: 'Lists: {list} ({current}/{total})',
+    progressIds: 'Resolving IMDb/TMDB: {current}/{total}',
+    exportDone: 'Done. You can download the file.',
+    statMoviesWatched: 'Movies (watched)',
+    statMoviesWant: 'Movies (want)',
+    statShows: 'TV shows',
+    statRated: 'Rated',
+    colTitle: 'Title',
+    colYear: 'Year',
+    colList: 'List',
+    colType: 'Type',
+    colRating: 'Rating',
+    colImdb: 'IMDb',
+    colStatus: 'Status',
+    previewMore: '… and {n} more rows in the file',
+    verified: 'Verified',
+    privateBadge: 'Private',
+    avgRating: 'Average rating',
+    followers: 'Followers',
+  },
+};
+
+export function t(lang, key, vars = {}) {
+  const template = dictionaries[lang]?.[key] ?? dictionaries.en[key] ?? key;
+  return template.replace(/\{(\w+)\}/g, (_, name) => (vars[name] != null ? String(vars[name]) : `{${name}}`));
+}
+
+export function applyI18n(lang) {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    const key = el.getAttribute('data-i18n');
+    el.textContent = t(lang, key);
+  });
+  document.querySelectorAll('select option[data-i18n]').forEach((el) => {
+    const key = el.getAttribute('data-i18n');
+    el.textContent = t(lang, key);
+  });
+}

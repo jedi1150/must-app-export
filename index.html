@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Экспорт фильмов и сериалов из публичного профиля Must (mustapp.com)"
+    />
+    <title>Must Export</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">M</span>
+          <div>
+            <h1 class="brand-title" data-i18n="title">Экспорт Must</h1>
+            <p class="brand-sub" data-i18n="subtitle">
+              Выгрузка просмотренного, списка «Посмотрю» и сериалов из публичного профиля
+            </p>
+          </div>
+        </div>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <button type="button" class="lang-btn active" data-lang="ru">RU</button>
+          <button type="button" class="lang-btn" data-lang="en">EN</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card panel">
+        <form id="export-form" novalidate>
+          <label class="field">
+            <span class="field-label" data-i18n="usernameLabel">Имя пользователя Must</span>
+            <div class="input-row">
+              <span class="input-prefix">@</span>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="grotesque"
+                required
+              />
+            </div>
+            <span class="field-hint" data-i18n="usernameHint">
+              Никнейм из ссылки mustapp.com/@никнейм (профиль должен быть публичным)
+            </span>
+          </label>
+
+          <fieldset class="formats">
+            <legend data-i18n="formatLegend">Формат экспорта</legend>
+            <label class="radio">
+              <input type="radio" name="format" value="letterboxd" checked />
+              <span data-i18n="fmtLetterboxd">Letterboxd (CSV, фильмы)</span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="format" value="imdb" />
+              <span data-i18n="fmtImdb">IMDb (CSV, фильмы)</span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="format" value="trakt-csv" />
+              <span data-i18n="fmtTraktCsv">Trakt (CSV, фильмы и сериалы)</span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="format" value="trakt-json" />
+              <span data-i18n="fmtTraktJson">Trakt-friendly JSON</span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="format" value="json" />
+              <span data-i18n="fmtJson">Полный JSON (сырые данные)</span>
+            </label>
+          </fieldset>
+
+          <details class="advanced" id="advanced-settings">
+            <summary data-i18n="advancedSummary">Дополнительные настройки</summary>
+            <div class="advanced-body">
+              <label class="field">
+                <span class="field-label" data-i18n="diaryLabel">Даты просмотра (WatchedDate)</span>
+                <select id="diary-mode" name="diary">
+                  <option value="all" data-i18n="diaryAll">Все отмеченные (modified_at)</option>
+                  <option value="reviewed" data-i18n="diaryReviewed">Только с отзывом</option>
+                  <option value="none" data-i18n="diaryNone">Не включать даты</option>
+                </select>
+              </label>
+              <label class="check">
+                <input type="checkbox" id="include-reviews" />
+                <span data-i18n="includeReviews">Загружать текст отзывов (доп. запросы)</span>
+              </label>
+              <label class="field">
+                <span class="field-label" data-i18n="tmdbTokenLabel">TMDB Bearer (опционально)</span>
+                <input
+                  id="tmdb-token"
+                  type="password"
+                  autocomplete="off"
+                  placeholder="v4 token…"
+                />
+                <span class="field-hint" data-i18n="tmdbTokenHint">
+                  Для сопоставления imdb/tmdb. По умолчанию используется встроенный read-only ключ.
+                </span>
+              </label>
+              <label class="field">
+                <span class="field-label" data-i18n="corsProxyLabel">CORS-прокси (запасной вариант)</span>
+                <input
+                  id="cors-proxy"
+                  type="url"
+                  autocomplete="off"
+                  placeholder="https://corsproxy.io/?"
+                />
+                <span class="field-hint" data-i18n="corsProxyHint">
+                  Обычно не нужен: mustapp.com и TMDB отдают Access-Control-Allow-Origin: *.
+                </span>
+              </label>
+            </div>
+          </details>
+
+          <div class="actions">
+            <button type="submit" id="submit-btn" class="btn primary" data-i18n="startExport">
+              Начать экспорт
+            </button>
+            <button type="button" id="download-btn" class="btn secondary" disabled data-i18n="download">
+              Скачать
+            </button>
+          </div>
+        </form>
+
+        <div id="progress" class="progress hidden" aria-live="polite">
+          <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+          <p id="progress-text" class="progress-text"></p>
+        </div>
+
+        <div id="alert" class="alert hidden" role="alert"></div>
+      </section>
+
+      <section id="summary" class="card summary hidden" aria-live="polite">
+        <h2 data-i18n="summaryTitle">Предпросмотр</h2>
+        <div id="profile-card" class="profile-card"></div>
+        <div id="stats-grid" class="stats-grid"></div>
+        <div id="preview-table-wrap" class="table-wrap"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer container">
+      <p data-i18n="footerNote">
+        Данные запрашиваются только из публичного API Must. Ключи и списки не отправляются на сторонние серверы,
+        кроме TMDB для сопоставления ID (и опционального CORS-прокси).
+      </p>
+      <p>
+        <a href="https://github.com/jedi1150/must-app-export" rel="noopener">GitHub</a>
+      </p>
+    </footer>
+
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
