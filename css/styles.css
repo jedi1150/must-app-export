@@ -302,12 +302,30 @@ select {
   margin-bottom: 1rem;
 }
 
-.profile-card img {
+.profile-avatar {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+}
+
+.profile-card img,
+.avatar-placeholder {
   width: 56px;
   height: 56px;
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid var(--border);
+}
+
+.avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .stats-grid {
