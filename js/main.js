@@ -22,6 +22,7 @@ import {
   getMemoryCache,
 } from './cache.js';
 import { downloadBlob, normalizeUsername } from './utils.js';
+import { prependProfileAvatar } from './profile-avatar.js';
 
 let currentLang = 'ru';
 let exportResult = null;
@@ -204,12 +205,9 @@ async function lookupProfile() {
 }
 
 function renderLookupPreview(profile) {
-  const img = profile.user_image
-    ? `<img src="https://mustapp.com/images${profile.user_image}" alt="" width="56" height="56" />`
-    : '';
   const w = profile.watched_by_type || {};
   els.lookupPreview.innerHTML = `
-    <div class="profile-card">${img}<div>
+    <div class="profile-card"><div>
       <strong>@${escapeHtml(profile.uri)}</strong> · ${escapeHtml(profile.name || '')}
       <div class="field-hint">${t(currentLang, 'lookupCounts', {
         movies: w.movies ?? '—',
@@ -217,6 +215,8 @@ function renderLookupPreview(profile) {
         want: profile.want_count ?? '—',
       })}</div>
     </div></div>`;
+  const card = els.lookupPreview.querySelector('.profile-card');
+  prependProfileAvatar(card, { uri: profile.uri, name: profile.name });
   els.lookupPreview.classList.remove('hidden');
 }
 
@@ -287,10 +287,8 @@ function renderDashboard() {
   if (!state.library) return;
   const stats = buildDashboardStats(state.library, state.profileRaw);
   const p = state.library.profile;
-  const img = p.user_image
-    ? `<img src="https://mustapp.com/images${p.user_image}" alt="" width="56" height="56" />`
-    : '';
-  els.profileCard.innerHTML = `${img}<div><strong>@${escapeHtml(state.username)}</strong> · ${escapeHtml(p.name || '')}</div>`;
+  els.profileCard.innerHTML = `<div><strong>@${escapeHtml(state.username)}</strong> · ${escapeHtml(p.name || '')}</div>`;
+  prependProfileAvatar(els.profileCard, { uri: p.uri || state.username, name: p.name });
 
   els.statsGrid.innerHTML = `
     <div class="stat"><strong>${stats.moviesWatched}</strong><span>${t(currentLang, 'statMoviesWatched')}</span></div>
