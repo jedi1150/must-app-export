@@ -66,7 +66,11 @@
             <div id="progress-fill" class="progress-fill"></div>
           </div>
           <p id="progress-text" class="progress-text"></p>
+          <div class="actions">
+            <button type="button" id="cancel-load-btn" class="btn secondary hidden" data-i18n="cancelAction">Отменить</button>
+          </div>
         </div>
+        <div id="load-alert" class="alert hidden" role="alert"></div>
         <div id="dashboard" class="dashboard hidden">
           <h3 data-i18n="dashboardTitle">Статистика</h3>
           <div id="profile-card" class="profile-card"></div>
@@ -79,6 +83,7 @@
       <section class="card panel hidden" id="step-export">
         <h2 class="step-title"><span class="step-num">3</span> <span data-i18n="step3Title">Экспорт</span></h2>
         <form id="export-form" novalidate>
+          <fieldset id="export-fieldset" class="plain-fieldset">
           <fieldset class="formats" id="service-fieldset">
             <legend data-i18n="serviceLegend">Куда переносим</legend>
             <div id="service-list"></div>
@@ -117,6 +122,16 @@
           <div class="actions">
             <button type="submit" id="export-btn" class="btn primary" data-i18n="buildExport">Собрать экспорт</button>
             <button type="button" id="download-btn" class="btn secondary" disabled data-i18n="download">Скачать</button>
+          </div>
+          </fieldset>
+          <div id="export-progress" class="progress hidden" aria-live="polite">
+            <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div id="export-progress-fill" class="progress-fill"></div>
+            </div>
+            <p id="export-progress-text" class="progress-text"></p>
+            <div class="actions">
+              <button type="button" id="cancel-export-btn" class="btn secondary" data-i18n="cancelAction">Отменить</button>
+            </div>
           </div>
         </form>
         <div id="export-alert" class="alert hidden" role="alert"></div>

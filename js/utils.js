@@ -8,8 +8,33 @@ export const MUST_SITE_HEADERS = {
   'x-requested-with': 'XMLHttpRequest',
 };
 
-export function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+export function isAbortError(error) {
+  return error?.name === 'AbortError';
+}
+
+export function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  if (signal.reason instanceof Error) throw signal.reason;
+  throw new DOMException('The operation was aborted.', 'AbortError');
+}
+
+export function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason instanceof Error ? signal.reason : new DOMException('The operation was aborted.', 'AbortError'));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
+      reject(signal.reason instanceof Error ? signal.reason : new DOMException('The operation was aborted.', 'AbortError'));
+    };
+    signal?.addEventListener('abort', onAbort);
+  });
 }
 
 export function normalizeUsername(value) {

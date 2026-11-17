@@ -21,11 +21,12 @@ import {
   setMemoryCache,
   getMemoryCache,
 } from './cache.js';
-import { downloadBlob, normalizeUsername } from './utils.js';
+import { downloadBlob, isAbortError, normalizeUsername, throwIfAborted } from './utils.js';
 import { prependProfileAvatar } from './profile-avatar.js';
 
 let currentLang = 'ru';
 let exportResult = null;
+let operation = null;
 let state = {
   username: '',
   profilePreview: null,
@@ -44,8 +45,10 @@ const els = {
   stepLoad: document.getElementById('step-load'),
   stepExport: document.getElementById('step-export'),
   loadBtn: document.getElementById('load-btn'),
+  cancelLoadBtn: document.getElementById('cancel-load-btn'),
   useCacheBtn: document.getElementById('use-cache-btn'),
   cacheHint: document.getElementById('cache-hint'),
+  loadAlert: document.getElementById('load-alert'),
   progress: document.getElementById('progress'),
   progressFill: document.getElementById('progress-fill'),
   progressText: document.getElementById('progress-text'),
@@ -55,6 +58,11 @@ const els = {
   ratingChart: document.getElementById('rating-chart'),
   topYears: document.getElementById('top-years'),
   exportForm: document.getElementById('export-form'),
+  exportFieldset: document.getElementById('export-fieldset'),
+  exportProgress: document.getElementById('export-progress'),
+  exportProgressFill: document.getElementById('export-progress-fill'),
+  exportProgressText: document.getElementById('export-progress-text'),
+  cancelExportBtn: document.getElementById('cancel-export-btn'),
   exportBtn: document.getElementById('export-btn'),
   downloadBtn: document.getElementById('download-btn'),
   exportAlert: document.getElementById('export-alert'),
@@ -99,10 +107,30 @@ function init() {
   });
 
   els.loadBtn.addEventListener('click', () => loadLibraryFull(true));
+  els.cancelLoadBtn.addEventListener('click', () => requestCancel('load'));
+  els.cancelExportBtn.addEventListener('click', () => requestCancel('export'));
   els.useCacheBtn.addEventListener('click', () => applyCacheRecord(getMemoryCache()));
+  window.addEventListener('beforeunload', (event) => {
+    if (!operation) return;
+    event.preventDefault();
+    event.returnValue = t(currentLang, 'confirmLeave');
+  });
+  document.addEventListener('click', (event) => {
+    if (!operation) return;
+    const link = event.target.closest?.('a[href]');
+    if (!link || link.target === '_blank') return;
+    if (!window.confirm(t(currentLang, 'confirmLeave'))) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    operation.controller.abort();
+    endOperation();
+  });
 
   els.exportForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (els.exportFieldset.disabled) return;
     await runExport();
   });
 
@@ -221,9 +249,10 @@ function renderLookupPreview(profile) {
 }
 
 async function loadLibraryFull(forceNetwork) {
-  if (!state.username) return;
-  els.loadBtn.disabled = true;
-  els.progress.classList.remove('hidden');
+  if (!state.username || operation) return;
+  showLoadAlert('', '');
+  const signal = beginOperation('load');
+  setBusyLoad(true);
   setProgress(3, t(currentLang, 'progressProfile'));
 
   try {
@@ -232,7 +261,7 @@ async function loadLibraryFull(forceNetwork) {
       if (mem?.library) return applyCacheRecord(mem);
     }
 
-    const http = createHttpClient({ corsProxy: els.corsProxy.value });
+    const http = createHttpClient({ corsProxy: els.corsProxy.value, signal });
     const includeReviews = els.includeReviews.checked;
     const profile = state.profilePreview || (await fetchPublicProfile(http, state.username));
     const bearer = await fetchAnonymousToken(http);
@@ -260,9 +289,14 @@ async function loadLibraryFull(forceNetwork) {
     afterLibraryReady();
     setProgress(100, t(currentLang, 'loadDone'));
   } catch (error) {
+    if (isAbortError(error)) {
+      showLoadAlert('info', t(currentLang, 'loadCancelled'));
+      return;
+    }
     showExportAlert('error', `${t(currentLang, 'errExport')}: ${error.message}`);
   } finally {
-    els.loadBtn.disabled = false;
+    endOperation();
+    setBusyLoad(false);
   }
 }
 
@@ -320,6 +354,8 @@ async function runExport() {
     return;
   }
 
+  if (operation) return;
+
   exportResult = null;
   els.downloadBtn.disabled = true;
   showExportAlert('', '');
@@ -328,26 +364,28 @@ async function runExport() {
   const target = resolveServiceFormat(form.get('service'), els.manualFormatToggle?.checked, form.get('format'));
   const diaryMode = els.diaryMode.value;
 
+  const signal = beginOperation('export');
   setBusyExport(true);
-  els.progress.classList.remove('hidden');
+  await nextPaint();
 
   try {
-    const http = createHttpClient({ corsProxy: els.corsProxy.value });
+    const http = createHttpClient({ corsProxy: els.corsProxy.value, signal });
     const library = structuredClone(state.library);
 
     if (needsIdLookup(target.format)) {
       const lookupItems = allItemsForIdLookup(library);
       await resolveExternalIds(http, lookupItems, els.tmdbToken.value, (current, total) => {
-        setProgress(20 + Math.round((current / total) * 50), t(currentLang, 'progressIds', { current, total }));
+        setExportProgress(20 + Math.round((current / total) * 50), t(currentLang, 'progressIds', { current, total }));
       });
     }
 
     if (target.format === 'mal-xml') {
       await resolveMalIds(http, library, (current, total) => {
-        setProgress(55 + Math.round((current / total) * 35), t(currentLang, 'progressMal', { current, total }));
+        setExportProgress(55 + Math.round((current / total) * 35), t(currentLang, 'progressMal', { current, total }));
       });
     }
 
+    throwIfAborted(signal);
     exportResult = await buildServiceArtifact(target, library, state.username, diaryMode);
     renderImportGuide(exportResult.serviceMeta, exportResult.files);
     renderPreview(exportResult);
@@ -357,12 +395,34 @@ async function runExport() {
       showExportAlert('success', t(currentLang, 'exportDone'));
     }
     els.downloadBtn.disabled = false;
-    setProgress(100, t(currentLang, 'exportDone'));
+    setExportProgress(100, t(currentLang, 'exportDone'));
   } catch (error) {
+    if (isAbortError(error)) {
+      showExportAlert('info', t(currentLang, 'exportCancelled'));
+      return;
+    }
     showExportAlert('error', `${t(currentLang, 'errExport')}: ${error.message}`);
   } finally {
+    endOperation();
     setBusyExport(false);
   }
+}
+
+function beginOperation(kind) {
+  const controller = new AbortController();
+  operation = { kind, controller };
+  return controller.signal;
+}
+
+function endOperation() {
+  operation = null;
+}
+
+function requestCancel(kind) {
+  if (!operation || operation.kind !== kind) return;
+  const key = kind === 'load' ? 'confirmCancelLoad' : 'confirmCancelExport';
+  if (!window.confirm(t(currentLang, key))) return;
+  operation.controller.abort();
 }
 
 function renderImportGuide(service, files) {
@@ -408,8 +468,79 @@ function showExportAlert(kind, message) {
   els.exportAlert.classList.toggle('hidden', !message);
 }
 
+function showLoadAlert(kind, message) {
+  els.loadAlert.className = kind ? `alert ${kind}` : 'alert hidden';
+  els.loadAlert.textContent = message || '';
+  els.loadAlert.classList.toggle('hidden', !message);
+}
+
+function pageControls() {
+  return [
+    els.username,
+    els.lookupBtn,
+    els.loadBtn,
+    els.useCacheBtn,
+    ...document.querySelectorAll('.lang-btn'),
+  ];
+}
+
+function exportPageControls() {
+  return pageControls();
+}
+
+function setControlsDisabled(controls, busy, key) {
+  for (const el of controls) {
+    if (!el) continue;
+    if (busy) {
+      el.dataset[key] = el.disabled ? '1' : '0';
+      el.disabled = true;
+    } else if (el.dataset[key] != null) {
+      el.disabled = el.dataset[key] === '1';
+      delete el.dataset[key];
+    }
+  }
+}
+
+function setBusyLoad(busy) {
+  els.stepLoad.setAttribute('aria-busy', busy ? 'true' : 'false');
+  els.cancelLoadBtn.classList.toggle('hidden', !busy);
+  els.exportFieldset.disabled = busy;
+  setControlsDisabled(pageControls(), busy, 'busyLoad');
+  if (busy) els.progress.classList.remove('hidden');
+}
+
 function setBusyExport(busy) {
-  els.exportBtn.disabled = busy;
+  els.exportFieldset.disabled = busy;
+  els.stepExport.setAttribute('aria-busy', busy ? 'true' : 'false');
+  setControlsDisabled(exportPageControls(), busy, 'busyExport');
+  els.exportProgress.classList.toggle('hidden', !busy);
+  if (busy) {
+    setExportProgress(null, t(currentLang, 'progressExport'));
+    els.exportProgress.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+async function nextPaint() {
+  await new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+}
+
+function setExportProgress(percent, text) {
+  const fill = els.exportProgressFill;
+  const bar = els.exportProgress.querySelector('[role="progressbar"]');
+  if (percent == null) {
+    fill.classList.add('indeterminate');
+    fill.style.width = '';
+    bar.removeAttribute('aria-valuenow');
+  } else {
+    const value = Math.min(100, Math.max(0, percent));
+    fill.classList.remove('indeterminate');
+    fill.style.transform = '';
+    fill.style.width = `${value}%`;
+    bar.setAttribute('aria-valuenow', String(value));
+  }
+  els.exportProgressText.textContent = text;
 }
 
 function setProgress(percent, text) {
