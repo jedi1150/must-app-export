@@ -1,4 +1,4 @@
-import { DEFAULT_TMDB_TOKEN, mapWithConcurrency, sleep, yearFromDate } from './utils.js';
+import { DEFAULT_TMDB_TOKEN, mapWithConcurrency, sleep, throwIfAborted, yearFromDate } from './utils.js';
 
 const LOOKUP_BATCH = 20;
 const TMDB_CONCURRENCY = 4;
@@ -19,6 +19,7 @@ export async function resolveExternalIds(http, items, tmdbToken, onProgress) {
 
   let processed = 0;
   for (let start = 0; start < needsLookup.length; start += LOOKUP_BATCH) {
+    throwIfAborted(http.signal);
     const slice = needsLookup.slice(start, start + LOOKUP_BATCH);
     await mapWithConcurrency(slice, TMDB_CONCURRENCY, async (item) => {
       const key = item.product.id;
@@ -33,7 +34,7 @@ export async function resolveExternalIds(http, items, tmdbToken, onProgress) {
 
     processed += slice.length;
     onProgress?.(processed, needsLookup.length);
-    if (start + LOOKUP_BATCH < needsLookup.length) await sleep(BETWEEN_BATCHES_MS);
+    if (start + LOOKUP_BATCH < needsLookup.length) await sleep(BETWEEN_BATCHES_MS, http.signal);
   }
 
   return items;

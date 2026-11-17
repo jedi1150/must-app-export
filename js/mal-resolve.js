@@ -1,4 +1,4 @@
-import { sleep, yearFromDate } from './utils.js';
+import { isAbortError, sleep, throwIfAborted, yearFromDate } from './utils.js';
 import { allItemsForIdLookup } from './must-api.js';
 
 const JIKAN_GAP_MS = 420;
@@ -8,6 +8,7 @@ export async function resolveMalIds(http, library, onProgress) {
   let processed = 0;
 
   for (const item of items) {
+    throwIfAborted(http.signal);
     item.malAttempted = true;
     try {
       const title = item.product?.title;
@@ -27,12 +28,13 @@ export async function resolveMalIds(http, library, onProgress) {
           type: match.type,
         };
       }
-    } catch {
+    } catch (error) {
+      if (isAbortError(error)) throw error;
       item.malMatch = null;
     }
     processed += 1;
     onProgress?.(processed, items.length);
-    if (processed < items.length) await sleep(JIKAN_GAP_MS);
+    if (processed < items.length) await sleep(JIKAN_GAP_MS, http.signal);
   }
   return items;
 }

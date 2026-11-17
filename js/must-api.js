@@ -1,4 +1,4 @@
-import { MUST_SITE_HEADERS, chunk, sleep } from './utils.js';
+import { MUST_SITE_HEADERS, chunk, sleep, throwIfAborted } from './utils.js';
 
 const PRODUCT_BATCH = 100;
 const BATCH_PAUSE_MS = 350;
@@ -51,6 +51,7 @@ export async function loadUserLibrary(http, profile, bearer, options, onProgress
 
   let listIndex = 0;
   for (const listName of listNames) {
+    throwIfAborted(http.signal);
     const ids = profile.lists[listName] || [];
     const items = await fetchProductsForList(http, profile.id, ids, headers, options, (current, total) => {
       onProgress?.({ phase: 'lists', list: listName, current, total, listIndex, listCount: listNames.length });
@@ -80,6 +81,7 @@ async function fetchProductsForList(http, userId, ids, headers, options, onProgr
   const all = [];
 
   for (let b = 0; b < batches.length; b += 1) {
+    throwIfAborted(http.signal);
     const batchIds = batches[b];
     const items = await http.fetchJson(
       `https://mustapp.com/api/users/id/${userId}/products?embed=product`,
@@ -97,7 +99,7 @@ async function fetchProductsForList(http, userId, ids, headers, options, onProgr
 
     all.push(...items);
     onProgress?.(all.length, ids.length);
-    if (b < batches.length - 1) await sleep(BATCH_PAUSE_MS);
+    if (b < batches.length - 1) await sleep(BATCH_PAUSE_MS, http.signal);
   }
 
   return all;
