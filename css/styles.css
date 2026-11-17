@@ -137,17 +137,23 @@ body {
   font-size: 0.85rem;
 }
 
-.step-note {
-  margin: 0.35rem 0 1rem;
-}
-
 .public-hint {
-  margin: 0 0 1rem;
-  padding: 0.65rem 0.75rem;
+  margin: 0.35rem 0 1rem;
+  padding: 0.75rem 0.85rem;
   border-radius: 10px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   line-height: 1.45;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.public-hint p {
+  margin: 0;
+}
+
+.public-hint p + p {
+  margin-top: 0.35rem;
 }
 
 .input-row {
