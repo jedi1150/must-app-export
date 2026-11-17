@@ -92,7 +92,7 @@ npm run build
 npx --yes serve -l 4173 .
 
 # CLI export (profile must be public)
-node scripts/export-must.mjs grotesque --service letterboxd --out exports
+node scripts/export-must.mjs jedi1150 --service letterboxd --out exports
 # legacy: --format letterboxd
 ```
 
