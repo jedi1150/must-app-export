@@ -5,6 +5,9 @@ export const dictionaries = {
     supportedServicesTitle: 'Куда можно экспортировать',
     supportedServicesHint: 'После загрузки данных выберите сервис — мы подготовим нужные файлы.',
     step1Title: 'Поиск профиля',
+    step1Description: 'Профиль должен быть публичным — иначе списки фильмов и сериалов недоступны.',
+    publicProfileHint:
+      'Сделать публичным в приложении Must: Профиль → шестерёнка → Конфиденциальность → выключите «Приватный профиль».',
     step2Title: 'Загрузка данных',
     step3Title: 'Экспорт',
     lookupProfile: 'Найти профиль',
@@ -26,7 +29,7 @@ export const dictionaries = {
     malSummary: 'MAL: сопоставлено {matched}, без совпадения {unmatched}',
     fmtMal: 'MAL XML',
     usernameLabel: 'Имя пользователя Must',
-    usernameHint: 'Никнейм из ссылки mustapp.com/@никнейм (профиль должен быть публичным)',
+    usernameHint: 'Никнейм из ссылки mustapp.com/@никнейм.',
     serviceLegend: 'Куда переносим',
     serviceGroupTrackers: 'Трекеры с импортом',
     serviceGroupGeneric: 'Таблицы и заметки',
@@ -63,7 +66,8 @@ export const dictionaries = {
     footerNote:
       'Данные запрашиваются только из публичного API Must. Ключи и списки не отправляются на сторонние серверы, кроме TMDB для сопоставления ID (и опционального CORS-прокси).',
     errEmptyUser: 'Введите имя пользователя.',
-    errPrivate: 'Профиль приватный или не отдаёт списки. Сделайте профиль публичным.',
+    errPrivate:
+      'Профиль приватный или не отдаёт списки. В приложении Must: Профиль → шестерёнка → Конфиденциальность → выключите «Приватный профиль».',
     errNotFound: 'Пользователь не найден.',
     errExport: 'Экспорт не удался',
     progressProfile: 'Загрузка профиля…',
@@ -153,6 +157,9 @@ export const dictionaries = {
     supportedServicesTitle: 'Supported export targets',
     supportedServicesHint: 'After loading data, pick a service on step 3.',
     step1Title: 'Find profile',
+    step1Description: 'The profile must be public — otherwise movie and TV lists are unavailable.',
+    publicProfileHint:
+      'Make it public in the Must app: Profile → gear → Privacy → turn off “Private profile”.',
     step2Title: 'Load data',
     step3Title: 'Export',
     lookupProfile: 'Find profile',
@@ -174,7 +181,7 @@ export const dictionaries = {
     malSummary: 'MAL matched {matched}, unmatched {unmatched}',
     fmtMal: 'MAL XML',
     usernameLabel: 'Must username',
-    usernameHint: 'Nickname from mustapp.com/@nickname (profile must be public)',
+    usernameHint: 'Nickname from mustapp.com/@nickname.',
     serviceLegend: 'Import target',
     serviceGroupTrackers: 'Trackers with import',
     serviceGroupGeneric: 'Spreadsheets & notes',
@@ -211,7 +218,8 @@ export const dictionaries = {
     footerNote:
       'Data is loaded from Must public APIs only. Lists are not sent to third parties except TMDB for ID matching (and an optional CORS proxy).',
     errEmptyUser: 'Enter a username.',
-    errPrivate: 'Profile is private or lists are hidden. Make the profile public.',
+    errPrivate:
+      'Profile is private or lists are hidden. In the Must app: Profile → gear → Privacy → turn off “Private profile”.',
     errNotFound: 'User not found.',
     errExport: 'Export failed',
     progressProfile: 'Loading profile…',

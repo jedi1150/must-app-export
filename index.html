@@ -33,6 +33,7 @@
 
       <section class="card panel" id="step-lookup">
         <h2 class="step-title"><span class="step-num">1</span> <span data-i18n="step1Title">Поиск профиля</span></h2>
+        <p class="field-hint step-note" data-i18n="step1Description">Профиль должен быть публичным — иначе списки фильмов и сериалов недоступны.</p>
         <form id="lookup-form" novalidate>
           <label class="field">
             <span class="field-label" data-i18n="usernameLabel">Имя пользователя Must</span>
@@ -40,7 +41,9 @@
               <span class="input-prefix">@</span>
               <input id="username" name="username" type="text" autocomplete="off" spellcheck="false" placeholder="jedi1150" required />
             </div>
+            <span class="field-hint" data-i18n="usernameHint">Никнейм из ссылки mustapp.com/@никнейм.</span>
           </label>
+          <p class="field-hint public-hint" data-i18n="publicProfileHint">Сделать публичным в приложении Must: Профиль → шестерёнка → Конфиденциальность → выключите «Приватный профиль».</p>
           <div class="actions">
             <button type="submit" id="lookup-btn" class="btn primary" data-i18n="lookupProfile">Найти профиль</button>
           </div>
