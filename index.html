@@ -57,6 +57,7 @@
       <section class="card panel hidden" id="step-load">
         <h2 class="step-title"><span class="step-num">2</span> <span data-i18n="step2Title">Загрузка данных</span></h2>
         <p id="cache-hint" class="field-hint"></p>
+        <p id="load-eta-hint" class="field-hint eta-hint hidden" aria-live="polite"></p>
         <div class="actions">
           <button type="button" id="load-btn" class="btn primary" data-i18n="loadLibrary">Загрузить / обновить</button>
           <button type="button" id="use-cache-btn" class="btn secondary hidden" data-i18n="useCache">Использовать кэш</button>
@@ -88,6 +89,7 @@
             <legend data-i18n="serviceLegend">Куда переносим</legend>
             <div id="service-list"></div>
             <p id="service-files-hint" class="field-hint" aria-live="polite"></p>
+            <p id="export-eta-hint" class="field-hint eta-hint" aria-live="polite"></p>
           </fieldset>
           <details class="advanced" id="advanced-settings">
             <summary data-i18n="advancedSummary">Дополнительные настройки</summary>

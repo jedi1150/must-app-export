@@ -23,8 +23,18 @@ import {
 } from './cache.js';
 import { downloadBlob, isAbortError, normalizeUsername, throwIfAborted } from './utils.js';
 import { prependProfileAvatar } from './profile-avatar.js';
+import {
+  createEtaTracker,
+  estimateExportDurationMs,
+  estimateLoadDurationMs,
+  formatDuration,
+  formatEtaRemaining,
+  libraryHasExternalIds,
+} from './eta.js';
 
 let currentLang = 'ru';
+let loadEtaTracker = createEtaTracker();
+let exportEtaTracker = createEtaTracker();
 let exportResult = null;
 let operation = null;
 let state = {
@@ -48,6 +58,7 @@ const els = {
   cancelLoadBtn: document.getElementById('cancel-load-btn'),
   useCacheBtn: document.getElementById('use-cache-btn'),
   cacheHint: document.getElementById('cache-hint'),
+  loadEtaHint: document.getElementById('load-eta-hint'),
   loadAlert: document.getElementById('load-alert'),
   progress: document.getElementById('progress'),
   progressFill: document.getElementById('progress-fill'),
@@ -70,6 +81,7 @@ const els = {
   tableWrap: document.getElementById('preview-table-wrap'),
   serviceList: document.getElementById('service-list'),
   serviceFilesHint: document.getElementById('service-files-hint'),
+  exportEtaHint: document.getElementById('export-eta-hint'),
   servicesLanding: document.getElementById('services-landing'),
   manualFormatToggle: document.getElementById('manual-format-toggle'),
   manualFormats: document.getElementById('manual-formats'),
@@ -91,6 +103,8 @@ function init() {
       renderServicePicker();
       if (state.profilePreview) renderLookupPreview(state.profilePreview);
       if (state.library) renderDashboard();
+      updateLoadEtaHint();
+      updateExportEtaHint();
     });
   });
   applyI18n(currentLang);
@@ -99,6 +113,11 @@ function init() {
 
   els.manualFormatToggle?.addEventListener('change', () => {
     els.manualFormats?.classList.toggle('hidden', !els.manualFormatToggle.checked);
+    updateExportEtaHint();
+  });
+  els.includeReviews?.addEventListener('change', updateLoadEtaHint);
+  els.manualFormats?.querySelectorAll('input[name="format"]').forEach((input) => {
+    input.addEventListener('change', updateExportEtaHint);
   });
 
   els.lookupForm.addEventListener('submit', async (e) => {
@@ -189,6 +208,52 @@ function updateServiceHint() {
   const id = new FormData(els.exportForm).get('service');
   const service = SERVICE_CATALOG.find((s) => s.id === id);
   els.serviceFilesHint.textContent = service ? t(currentLang, service.filesKey) : '';
+  updateExportEtaHint();
+}
+
+function updateLoadEtaHint() {
+  const profile = state.profilePreview;
+  if (!profile?.lists || !els.loadEtaHint) return;
+  const includeReviews = els.includeReviews?.checked;
+  const ms = estimateLoadDurationMs(profile, { includeReviews });
+  els.loadEtaHint.textContent = t(currentLang, 'loadEtaHint', { eta: formatDuration(ms, currentLang) });
+  els.loadEtaHint.classList.remove('hidden');
+}
+
+function resolveExportTargetFromForm() {
+  const form = new FormData(els.exportForm);
+  try {
+    return resolveServiceFormat(form.get('service'), els.manualFormatToggle?.checked, form.get('format'));
+  } catch {
+    return null;
+  }
+}
+
+function updateExportEtaHint() {
+  if (!els.exportEtaHint) return;
+  if (!state.library) {
+    els.exportEtaHint.textContent = '';
+    return;
+  }
+  const target = resolveExportTargetFromForm();
+  if (!target) {
+    els.exportEtaHint.textContent = '';
+    return;
+  }
+  const skipTmdb = libraryHasExternalIds(state.library);
+  const ms = estimateExportDurationMs(state.library, target.format, { skipTmdb });
+  const instant = ms < 2_500 && target.format === 'json';
+  const etaLabel = instant
+    ? t(currentLang, 'exportEtaInstant')
+    : formatDuration(ms, currentLang);
+  els.exportEtaHint.textContent = t(currentLang, 'exportEtaHint', { eta: etaLabel });
+}
+
+function progressLabel(statusKey, vars, etaMs) {
+  const status = t(currentLang, statusKey, vars);
+  if (etaMs == null) return status;
+  const eta = formatEtaRemaining(etaMs, currentLang);
+  return t(currentLang, 'progressWithEta', { status, eta });
 }
 
 async function lookupProfile() {
@@ -211,6 +276,7 @@ async function lookupProfile() {
     state.profileRaw = profile;
     renderLookupPreview(profile);
     els.stepLoad.classList.remove('hidden');
+    updateLoadEtaHint();
 
     const cached = await getCachedLibrary(username);
     if (cached) {
@@ -253,6 +319,11 @@ async function loadLibraryFull(forceNetwork) {
   showLoadAlert('', '');
   const signal = beginOperation('load');
   setBusyLoad(true);
+  loadEtaTracker.reset();
+  const profileForEta = state.profilePreview;
+  const loadListKeys = ['watched', 'want', 'shows'];
+  const loadListSizes = loadListKeys.map((key) => profileForEta?.lists?.[key]?.length || 0);
+  const loadTotalItems = loadListSizes.reduce((sum, n) => sum + n, 0);
   setProgress(3, t(currentLang, 'progressProfile'));
 
   try {
@@ -273,7 +344,13 @@ async function loadLibraryFull(forceNetwork) {
       ({ phase, list, current, total, listIndex, listCount }) => {
         if (phase === 'lists') {
           const pct = 8 + Math.round(((listIndex + current / Math.max(total, 1)) / listCount) * 72);
-          setProgress(pct, t(currentLang, 'progressList', { list, current, total }));
+          const completedBefore = loadListSizes.slice(0, listIndex).reduce((sum, n) => sum + n, 0);
+          const loadProgressDone = Math.min(loadTotalItems, completedBefore + current);
+          const { remainingMs } = loadEtaTracker.tick(loadProgressDone, loadTotalItems || 1);
+          setProgress(
+            pct,
+            progressLabel('progressList', { list, current, total }, remainingMs),
+          );
         }
       },
     );
@@ -288,6 +365,7 @@ async function loadLibraryFull(forceNetwork) {
 
     afterLibraryReady();
     setProgress(100, t(currentLang, 'loadDone'));
+    updateExportEtaHint();
   } catch (error) {
     if (isAbortError(error)) {
       showLoadAlert('info', t(currentLang, 'loadCancelled'));
@@ -312,6 +390,7 @@ function afterLibraryReady() {
   renderDashboard();
   els.dashboard.classList.remove('hidden');
   els.stepExport.classList.remove('hidden');
+  updateExportEtaHint();
   els.cacheHint.textContent = t(currentLang, 'cacheLoaded', {
     date: new Date(state.fetchedAt).toLocaleString(currentLang === 'ru' ? 'ru-RU' : 'en-US'),
   });
@@ -366,6 +445,7 @@ async function runExport() {
 
   const signal = beginOperation('export');
   setBusyExport(true);
+  exportEtaTracker.reset();
   await nextPaint();
 
   try {
@@ -375,13 +455,21 @@ async function runExport() {
     if (needsIdLookup(target.format)) {
       const lookupItems = allItemsForIdLookup(library);
       await resolveExternalIds(http, lookupItems, els.tmdbToken.value, (current, total) => {
-        setExportProgress(20 + Math.round((current / total) * 50), t(currentLang, 'progressIds', { current, total }));
+        const { remainingMs } = exportEtaTracker.tick(current, total);
+        setExportProgress(
+          20 + Math.round((current / total) * 50),
+          progressLabel('progressIds', { current, total }, remainingMs),
+        );
       });
     }
 
     if (target.format === 'mal-xml') {
       await resolveMalIds(http, library, (current, total) => {
-        setExportProgress(55 + Math.round((current / total) * 35), t(currentLang, 'progressMal', { current, total }));
+        const { remainingMs } = exportEtaTracker.tick(current, total);
+        setExportProgress(
+          55 + Math.round((current / total) * 35),
+          progressLabel('progressMal', { current, total }, remainingMs),
+        );
       });
     }
 
